@@ -18,8 +18,6 @@ import React, { ReactNode } from 'react';
 import {
   Box,
   Chip,
-  Divider,
-  ListItem,
   ListItemIcon,
   ListItemText,
   makeStyles,
@@ -33,6 +31,9 @@ import { ResultHighlight } from '@backstage/plugin-search-common';
 import { HighlightedSearchResultText } from '@backstage/plugin-search-react';
 
 const useStyles = makeStyles({
+  item: {
+    display: 'flex',
+  },
   flexContainer: {
     flexWrap: 'wrap',
   },
@@ -65,9 +66,9 @@ export function AdrSearchResultListItem(props: AdrSearchResultListItemProps) {
   if (!result) return null;
 
   return (
-    <>
-      <ListItem alignItems="flex-start" className={classes.flexContainer}>
-        {icon && <ListItemIcon>{icon}</ListItemIcon>}
+    <div className={classes.item}>
+      {icon && <ListItemIcon>{icon}</ListItemIcon>}
+      <div className={classes.flexContainer}>
         <ListItemText
           className={classes.itemText}
           primaryTypographyProps={{ variant: 'h6' }}
@@ -93,6 +94,8 @@ export function AdrSearchResultListItem(props: AdrSearchResultListItemProps) {
                 WebkitLineClamp: lineClamp,
                 overflow: 'hidden',
               }}
+              color="textSecondary"
+              variant="body2"
             >
               {highlight?.fields.text ? (
                 <HighlightedSearchResultText
@@ -119,8 +122,7 @@ export function AdrSearchResultListItem(props: AdrSearchResultListItemProps) {
           )}
           {result.date && <Chip label={`Date: ${result.date}`} size="small" />}
         </Box>
-      </ListItem>
-      <Divider component="li" />
-    </>
+      </div>
+    </div>
   );
 }

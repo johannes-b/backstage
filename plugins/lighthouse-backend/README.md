@@ -8,7 +8,7 @@ Lighthouse Backend allows you to run scheduled lighthouse Tests for each Website
 
 ```bash
 # From your Backstage root directory
-yarn add --cwd packages/backend @backstage/plugin-lighthouse-backend
+yarn --cwd packages/backend add @backstage/plugin-lighthouse-backend
 ```
 
 2. Create a `lighthouse.ts` file inside `packages/backend/src/plugins/`:
@@ -19,13 +19,19 @@ import { PluginEnvironment } from '../types';
 import { CatalogClient } from '@backstage/catalog-client';
 
 export default async function createPlugin(env: PluginEnvironment) {
-  const { logger, scheduler, config } = env;
+  const { logger, scheduler, config, tokenManager } = env;
 
   const catalogClient = new CatalogClient({
     discoveryApi: env.discovery,
   });
 
-  await createScheduler({ logger, scheduler, config, catalogClient });
+  await createScheduler({
+    logger,
+    scheduler,
+    config,
+    catalogClient,
+    tokenManager,
+  });
 }
 ```
 
@@ -80,5 +86,8 @@ You can define how often and when the scheduler should run the audits:
 ```yaml
 lighthouse:
   schedule:
-    days: 1
+    frequency:
+      hours: 12 # Default: 1 day
+    timeout:
+      minutes: 30 # Default: 10 minutes
 ```

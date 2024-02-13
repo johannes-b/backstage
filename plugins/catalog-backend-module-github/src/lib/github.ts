@@ -193,7 +193,7 @@ export async function getOrganizationTeams(
   const query = `
     query teams($org: String!, $cursor: String) {
       organization(login: $org) {
-        teams(first: 100, after: $cursor) {
+        teams(first: 50, after: $cursor) {
           pageInfo { hasNextPage, endCursor }
           nodes {
             slug
@@ -462,7 +462,7 @@ export async function getOrganizationRepositories(
     query repositories($org: String!, $catalogPathRef: String!, $cursor: String) {
       repositoryOwner(login: $org) {
         login
-        repositories(first: 100, after: $cursor) {
+        repositories(first: 50, after: $cursor) {
           nodes {
             name
             catalogInfoFile: object(expression: $catalogPathRef) {

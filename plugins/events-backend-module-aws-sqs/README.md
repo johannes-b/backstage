@@ -38,5 +38,9 @@ events:
 
 ```bash
 # From your Backstage root directory
-yarn add --cwd packages/backend @backstage/plugin-events-backend-module-aws-sqs
+yarn --cwd packages/backend add @backstage/plugin-events-backend-module-aws-sqs
+```
+
+```ts title="packages/backend/src/index.ts"
+backend.add(import('@backstage/plugin-events-backend-module-aws-sqs/alpha'));
 ```

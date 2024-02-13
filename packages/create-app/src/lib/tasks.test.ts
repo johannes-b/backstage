@@ -15,9 +15,8 @@
  */
 
 import fs from 'fs-extra';
-import mockFs from 'mock-fs';
 import child_process from 'child_process';
-import path, { resolve as resolvePath } from 'path';
+import { resolve as resolvePath } from 'path';
 import os from 'os';
 import {
   Task,
@@ -28,7 +27,14 @@ import {
   templatingTask,
   tryInitGitRepository,
   readGitConfig,
+  fetchYarnLockSeedTask,
 } from './tasks';
+import {
+  createMockDirectory,
+  setupRequestMockHandlers,
+} from '@backstage/backend-test-utils';
+import { rest } from 'msw';
+import { setupServer } from 'msw/node';
 
 jest.spyOn(Task, 'log').mockReturnValue(undefined);
 jest.spyOn(Task, 'error').mockReturnValue(undefined);
@@ -53,12 +59,15 @@ jest.mock('./versions', () => ({
     '@backstage/plugin-auth-backend': '1.0.0',
     '@backstage/plugin-auth-node': '1.0.0',
     '@backstage/plugin-catalog-backend': '1.0.0',
+    '@backstage/plugin-catalog-backend-module-scaffolder-entity-model': '1.0.0',
     '@backstage/plugin-permission-common': '1.0.0',
     '@backstage/plugin-permission-node': '1.0.0',
     '@backstage/plugin-proxy-backend': '1.0.0',
     '@backstage/plugin-scaffolder-backend': '1.0.0',
     '@backstage/plugin-search-backend': '1.0.0',
+    '@backstage/plugin-search-backend-module-catalog': '1.0.0',
     '@backstage/plugin-search-backend-module-pg': '1.0.0',
+    '@backstage/plugin-search-backend-module-techdocs': '1.0.0',
     '@backstage/plugin-search-backend-node': '1.0.0',
     '@backstage/plugin-techdocs-backend': '1.0.0',
     '@backstage/app-defaults': '1.0.0',
@@ -101,21 +110,38 @@ describe('tasks', () => {
     ) => void
   >;
 
+  const mockDir = createMockDirectory();
+
+  const origCwd = process.cwd();
+  const realChdir = process.chdir;
+  // If anyone calls chdir then make it resolve within the tmpdir
+  const mockChdir = jest.spyOn(process, 'chdir');
+
   beforeEach(() => {
-    mockFs({
-      'projects/my-module.ts': '',
-      'projects/dir/my-file.txt': '',
-      'tmp/mockApp/.gitignore': '',
-      'tmp/mockApp/package.json': '',
-      'tmp/mockApp/packages/app/package.json': '',
-      // load templates into mock filesystem
-      'templates/': mockFs.load(path.resolve(__dirname, '../../templates/')),
+    mockDir.setContent({
+      projects: {
+        'my-module.ts': '',
+        'dir/my-file.txt': '',
+      },
+      'tmp/mockApp': {
+        '.gitignore': '',
+        'package.json': '',
+        'packages/app/package.json': '',
+      },
     });
+    realChdir(mockDir.path);
+    mockChdir.mockImplementation((dir: string) =>
+      realChdir(mockDir.resolve(dir)),
+    );
   });
 
   afterEach(() => {
     mockExec.mockRestore();
-    mockFs.restore();
+    mockChdir.mockReset();
+  });
+
+  afterAll(() => {
+    realChdir(origCwd);
   });
 
   describe('checkAppExistsTask', () => {
@@ -164,8 +190,6 @@ describe('tasks', () => {
 
   describe('buildAppTask', () => {
     it('should change to `appDir` and run `yarn install` and `yarn tsc`', async () => {
-      const mockChdir = jest.spyOn(process, 'chdir');
-
       // requires callback implementation to support `promisify` wrapper
       // https://stackoverflow.com/a/60579617/10044859
       mockExec.mockImplementation((_command, callback) => {
@@ -199,8 +223,6 @@ describe('tasks', () => {
     });
 
     it('should error out on incorrect yarn version', async () => {
-      const mockChdir = jest.spyOn(process, 'chdir');
-
       // requires callback implementation to support `promisify` wrapper
       // https://stackoverflow.com/a/60579617/10044859
       mockExec.mockImplementation((_command, callback) => {
@@ -265,7 +287,7 @@ describe('tasks', () => {
 
   describe('templatingTask', () => {
     it('should generate a project populating context parameters', async () => {
-      const templateDir = 'templates/default-app';
+      const templateDir = resolvePath(__dirname, '../../templates/default-app');
       const destinationDir = 'templatedApp';
       const context = {
         name: 'SuperCoolBackstageInstance',
@@ -392,6 +414,77 @@ describe('tasks', () => {
         { cwd: destinationDir },
         expect.any(Function),
       );
+    });
+  });
+
+  describe('fetchYarnLockSeedTask', () => {
+    const worker = setupServer();
+    setupRequestMockHandlers(worker);
+
+    it('should fetch the yarn.lock seed file', async () => {
+      worker.use(
+        rest.get(
+          'https://raw.githubusercontent.com/backstage/backstage/master/packages/create-app/seed-yarn.lock',
+          (_, res, ctx) =>
+            res(
+              ctx.status(200),
+              ctx.text(`# the-lockfile-header
+
+// some comments
+// in the file
+// that should
+// be removed
+
+// a comment about the entry
+"@backstage/cli@1.0.0":
+  some info
+`),
+            ),
+        ),
+      );
+
+      mockDir.clear();
+
+      await expect(fetchYarnLockSeedTask(mockDir.path)).resolves.toBe(true);
+
+      expect(mockDir.content({ shouldReadAsText: true })).toEqual({
+        'yarn.lock': `# the-lockfile-header
+
+
+"@backstage/cli@1.0.0":
+  some info
+`,
+      });
+    });
+
+    it('should fail gracefully', async () => {
+      worker.use(
+        rest.get(
+          'https://raw.githubusercontent.com/backstage/backstage/master/packages/create-app/seed-yarn.lock',
+          (_, res, ctx) => res(ctx.status(404)),
+        ),
+      );
+
+      mockDir.clear();
+
+      await expect(fetchYarnLockSeedTask(mockDir.path)).resolves.toBe(false);
+
+      expect(mockDir.content()).toEqual({});
+    });
+
+    it('should time out if it takes too long to fetch', async () => {
+      worker.use(
+        rest.get(
+          'https://raw.githubusercontent.com/backstage/backstage/master/packages/create-app/seed-yarn.lock',
+          (_, res, ctx) => res(ctx.delay(5000)),
+        ),
+      );
+
+      mockDir.clear();
+
+      await expect(fetchYarnLockSeedTask(mockDir.path)).resolves.toBe(false);
+
+      expect(mockDir.content()).toEqual({});
     });
   });
 });

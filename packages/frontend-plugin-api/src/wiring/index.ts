@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-export { coreExtensionData, type NavTarget } from './coreExtensionData';
+export { coreExtensionData } from './coreExtensionData';
 export {
   createExtension,
-  type Extension,
+  type ExtensionDefinition,
   type CreateExtensionOptions,
   type ExtensionDataValues,
-  type ExtensionInputValues,
+  type ResolvedExtensionInput,
+  type ResolvedExtensionInputs,
   type AnyExtensionInputMap,
   type AnyExtensionDataMap,
 } from './createExtension';
@@ -33,8 +34,17 @@ export {
   type ExtensionDataRef,
   type ConfigurableExtensionDataRef,
 } from './createExtensionDataRef';
+export { createPlugin, type PluginOptions } from './createPlugin';
 export {
-  createPlugin,
+  createExtensionOverrides,
+  type ExtensionOverridesOptions,
+} from './createExtensionOverrides';
+export { type Extension } from './resolveExtensionDefinition';
+export {
+  type AnyRoutes,
+  type AnyExternalRoutes,
   type BackstagePlugin,
-  type PluginOptions,
-} from './createPlugin';
+  type ExtensionOverrides,
+  type FeatureFlagConfig,
+  type FrontendFeature,
+} from './types';

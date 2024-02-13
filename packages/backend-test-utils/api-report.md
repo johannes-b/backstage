@@ -4,6 +4,7 @@
 
 ```ts
 /// <reference types="jest" />
+/// <reference types="node" />
 
 import { Backend } from '@backstage/backend-app-api';
 import { BackendFeature } from '@backstage/backend-plugin-api';
@@ -30,8 +31,58 @@ import { ServiceRef } from '@backstage/backend-plugin-api';
 import { TokenManagerService } from '@backstage/backend-plugin-api';
 import { UrlReaderService } from '@backstage/backend-plugin-api';
 
+// @public
+export function createMockDirectory(
+  options?: MockDirectoryOptions,
+): MockDirectory;
+
 // @public (undocumented)
 export function isDockerDisabledForTests(): boolean;
+
+// @public
+export interface MockDirectory {
+  addContent(root: MockDirectoryContent): void;
+  clear(): void;
+  content(
+    options?: MockDirectoryContentOptions,
+  ): MockDirectoryContent | undefined;
+  readonly path: string;
+  remove(): void;
+  resolve(...paths: string[]): string;
+  setContent(root: MockDirectoryContent): void;
+}
+
+// @public
+export type MockDirectoryContent = {
+  [name in string]:
+    | MockDirectoryContent
+    | string
+    | Buffer
+    | MockDirectoryContentCallback;
+};
+
+// @public
+export type MockDirectoryContentCallback = (
+  ctx: MockDirectoryContentCallbackContext,
+) => void;
+
+// @public
+export interface MockDirectoryContentCallbackContext {
+  path: string;
+  symlink(target: string): void;
+}
+
+// @public
+export interface MockDirectoryContentOptions {
+  path?: string;
+  shouldReadAsText?: boolean | ((path: string, buffer: Buffer) => boolean);
+}
+
+// @public
+export interface MockDirectoryOptions {
+  content?: MockDirectoryContent;
+  mockOsTmpDir?: boolean;
+}
 
 // @public (undocumented)
 export namespace mockServices {
@@ -256,6 +307,8 @@ export interface TestBackendOptions<TExtensionPoints extends any[]> {
 
 // @public
 export type TestDatabaseId =
+  | 'POSTGRES_16'
+  | 'POSTGRES_15'
   | 'POSTGRES_14'
   | 'POSTGRES_13'
   | 'POSTGRES_12'
@@ -273,6 +326,8 @@ export class TestDatabases {
   // (undocumented)
   eachSupportedId(): [TestDatabaseId][];
   init(id: TestDatabaseId): Promise<Knex>;
+  // (undocumented)
+  static setDefaults(options: { ids?: TestDatabaseId[] }): void;
   // (undocumented)
   supports(id: TestDatabaseId): boolean;
 }

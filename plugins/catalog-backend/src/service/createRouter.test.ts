@@ -22,6 +22,7 @@ import {
   ANNOTATION_LOCATION,
   ANNOTATION_ORIGIN_LOCATION,
   Entity,
+  stringifyEntityRef,
 } from '@backstage/catalog-model';
 import express from 'express';
 import request from 'supertest';
@@ -38,12 +39,14 @@ import { RESOURCE_TYPE_CATALOG_ENTITY } from '@backstage/plugin-catalog-common/a
 import { CatalogProcessingOrchestrator } from '../processing/types';
 import { z } from 'zod';
 import { encodeCursor } from './util';
+import { wrapInOpenApiTestServer } from '@backstage/backend-openapi-utils';
+import { Server } from 'http';
 
 describe('createRouter readonly disabled', () => {
   let entitiesCatalog: jest.Mocked<EntitiesCatalog>;
   let locationService: jest.Mocked<LocationService>;
   let orchestrator: jest.Mocked<CatalogProcessingOrchestrator>;
-  let app: express.Express;
+  let app: express.Express | Server;
   let refreshService: RefreshService;
 
   beforeAll(async () => {
@@ -60,6 +63,7 @@ describe('createRouter readonly disabled', () => {
       createLocation: jest.fn(),
       listLocations: jest.fn(),
       deleteLocation: jest.fn(),
+      getLocationByEntity: jest.fn(),
     };
     refreshService = { refresh: jest.fn() };
     orchestrator = { process: jest.fn() };
@@ -72,7 +76,7 @@ describe('createRouter readonly disabled', () => {
       config: new ConfigReader(undefined),
       permissionIntegrationRouter: express.Router(),
     });
-    app = express().use(router);
+    app = wrapInOpenApiTestServer(express().use(router));
   });
 
   beforeEach(() => {
@@ -168,6 +172,45 @@ describe('createRouter readonly disabled', () => {
       });
       const response = await request(app).get(
         '/entities/by-query?filter=a=1,a=2,b=3&filter=c=4&orderField=metadata.name,asc&orderField=metadata.uid,desc',
+      );
+
+      expect(response.status).toEqual(200);
+      expect(entitiesCatalog.queryEntities).toHaveBeenCalledTimes(1);
+      expect(entitiesCatalog.queryEntities).toHaveBeenCalledWith({
+        filter: {
+          anyOf: [
+            {
+              allOf: [
+                { key: 'a', values: ['1', '2'] },
+                { key: 'b', values: ['3'] },
+              ],
+            },
+            { allOf: [{ key: 'c', values: ['4'] }] },
+          ],
+        },
+        orderFields: [
+          { field: 'metadata.name', order: 'asc' },
+          { field: 'metadata.uid', order: 'desc' },
+        ],
+        fullTextFilter: {
+          fields: undefined,
+          term: '',
+        },
+      });
+    });
+
+    it('parses encoded params request', async () => {
+      entitiesCatalog.queryEntities.mockResolvedValueOnce({
+        items: [],
+        pageInfo: {},
+        totalItems: 0,
+      });
+      const response = await request(app).get(
+        `/entities/by-query?filter=${encodeURIComponent(
+          'a=1,a=2,b=3',
+        )}&filter=c=4&orderField=${encodeURIComponent(
+          'metadata.name,asc',
+        )}&orderField=metadata.uid,desc`,
       );
 
       expect(response.status).toEqual(200);
@@ -412,15 +455,27 @@ describe('createRouter readonly disabled', () => {
     });
 
     it('can fetch entities by refs', async () => {
-      const entity: Entity = {} as any;
+      const entity: Entity = {
+        apiVersion: 'a',
+        kind: 'component',
+        metadata: {
+          name: 'a',
+        },
+      };
+      const entityRef = stringifyEntityRef(entity);
       entitiesCatalog.entitiesBatch.mockResolvedValue({ items: [entity] });
       const response = await request(app)
         .post('/entities/by-refs')
         .set('Content-Type', 'application/json')
-        .send('{"entityRefs":["a"],"fields":["b"]}');
+        .send(
+          JSON.stringify({
+            entityRefs: [entityRef],
+            fields: ['metadata.name'],
+          }),
+        );
       expect(entitiesCatalog.entitiesBatch).toHaveBeenCalledTimes(1);
       expect(entitiesCatalog.entitiesBatch).toHaveBeenCalledWith({
-        entityRefs: ['a'],
+        entityRefs: [entityRef],
         fields: expect.any(Function),
       });
       expect(response.status).toEqual(200);
@@ -567,6 +622,36 @@ describe('createRouter readonly disabled', () => {
     });
   });
 
+  describe('GET /locations/by-entity/:kind/:namespace/:name', () => {
+    it('happy path: gets location by entity ref', async () => {
+      const location: Location = {
+        id: 'foo',
+        type: 'url',
+        target: 'example.com',
+      };
+      locationService.getLocationByEntity.mockResolvedValueOnce(location);
+
+      const response = await request(app)
+        .get('/locations/by-entity/c/ns/n')
+        .set('authorization', 'Bearer someauthtoken');
+
+      expect(locationService.getLocationByEntity).toHaveBeenCalledTimes(1);
+      expect(locationService.getLocationByEntity).toHaveBeenCalledWith(
+        { kind: 'c', namespace: 'ns', name: 'n' },
+        {
+          authorizationToken: 'someauthtoken',
+        },
+      );
+
+      expect(response.status).toEqual(200);
+      expect(response.body).toEqual({
+        id: 'foo',
+        target: 'example.com',
+        type: 'url',
+      });
+    });
+  });
+
   describe('POST /validate-entity', () => {
     describe('valid entity', () => {
       it('returns 200', async () => {
@@ -699,6 +784,7 @@ describe('createRouter readonly enabled', () => {
       createLocation: jest.fn(),
       listLocations: jest.fn(),
       deleteLocation: jest.fn(),
+      getLocationByEntity: jest.fn(),
     };
     const router = await createRouter({
       entitiesCatalog,
@@ -857,6 +943,36 @@ describe('createRouter readonly enabled', () => {
       expect(response.status).toEqual(403);
     });
   });
+
+  describe('GET /locations/by-entity/:kind/:namespace/:name', () => {
+    it('happy path: gets location by entity ref', async () => {
+      const location: Location = {
+        id: 'foo',
+        type: 'url',
+        target: 'example.com',
+      };
+      locationService.getLocationByEntity.mockResolvedValueOnce(location);
+
+      const response = await request(app)
+        .get('/locations/by-entity/c/ns/n')
+        .set('authorization', 'Bearer someauthtoken');
+
+      expect(locationService.getLocationByEntity).toHaveBeenCalledTimes(1);
+      expect(locationService.getLocationByEntity).toHaveBeenCalledWith(
+        { kind: 'c', namespace: 'ns', name: 'n' },
+        {
+          authorizationToken: 'someauthtoken',
+        },
+      );
+
+      expect(response.status).toEqual(200);
+      expect(response.body).toEqual({
+        id: 'foo',
+        target: 'example.com',
+        type: 'url',
+      });
+    });
+  });
 });
 
 describe('NextRouter permissioning', () => {
@@ -890,6 +1006,7 @@ describe('NextRouter permissioning', () => {
       createLocation: jest.fn(),
       listLocations: jest.fn(),
       deleteLocation: jest.fn(),
+      getLocationByEntity: jest.fn(),
     };
     refreshService = { refresh: jest.fn() };
     const router = await createRouter({

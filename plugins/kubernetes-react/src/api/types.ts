@@ -22,6 +22,7 @@ import {
 } from '@backstage/plugin-kubernetes-common';
 import { createApiRef } from '@backstage/core-plugin-api';
 import { Event } from 'kubernetes-models/v1';
+import { JsonObject } from '@backstage/types';
 
 /** @public */
 export const kubernetesApiRef = createApiRef<KubernetesApi>({
@@ -34,6 +35,12 @@ export const kubernetesProxyApiRef = createApiRef<KubernetesProxyApi>({
 });
 
 /** @public */
+export const kubernetesClusterLinkFormatterApiRef =
+  createApiRef<KubernetesClusterLinkFormatterApi>({
+    id: 'plugin.kubernetes.cluster-link-formatter-service',
+  });
+
+/** @public */
 export interface KubernetesApi {
   getObjectsByEntity(
     requestBody: KubernetesRequestBody,
@@ -42,8 +49,17 @@ export interface KubernetesApi {
     {
       name: string;
       authProvider: string;
-      oidcTokenProvider?: string | undefined;
+      oidcTokenProvider?: string;
     }[]
+  >;
+  getCluster(clusterName: string): Promise<
+    | {
+        name: string;
+        authProvider: string;
+        oidcTokenProvider?: string;
+        dashboardUrl?: string;
+      }
+    | undefined
   >;
   getWorkloadsByEntity(
     request: WorkloadsByEntityRequest,
@@ -72,4 +88,22 @@ export interface KubernetesProxyApi {
     involvedObjectName: string;
     namespace: string;
   }): Promise<Event[]>;
+}
+
+/**
+ * @public
+ */
+export type FormatClusterLinkOptions = {
+  dashboardUrl?: string;
+  dashboardApp?: string;
+  dashboardParameters?: JsonObject;
+  object: any;
+  kind: string;
+};
+
+/** @public */
+export interface KubernetesClusterLinkFormatterApi {
+  formatClusterLink(
+    options: FormatClusterLinkOptions,
+  ): Promise<string | undefined>;
 }

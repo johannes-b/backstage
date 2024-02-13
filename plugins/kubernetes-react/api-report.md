@@ -22,12 +22,14 @@ import { IContainerStatus } from 'kubernetes-models/v1';
 import { IdentityApi } from '@backstage/core-plugin-api';
 import { IIoK8sApimachineryPkgApisMetaV1ObjectMeta } from '@kubernetes-models/apimachinery/apis/meta/v1/ObjectMeta';
 import { IObjectMeta } from '@kubernetes-models/apimachinery/apis/meta/v1/ObjectMeta';
+import { JsonObject } from '@backstage/types';
 import { KubernetesRequestBody } from '@backstage/plugin-kubernetes-common';
 import { OAuthApi } from '@backstage/core-plugin-api';
 import { ObjectsByEntityResponse } from '@backstage/plugin-kubernetes-common';
 import { OpenIdConnectApi } from '@backstage/core-plugin-api';
 import { Pod } from 'kubernetes-models/v1';
 import { Pod as Pod_2 } from 'kubernetes-models/v1/Pod';
+import { ProfileInfoApi } from '@backstage/core-plugin-api';
 import { default as React_2 } from 'react';
 import * as React_3 from 'react';
 import { TypeMeta } from '@kubernetes-models/base';
@@ -36,6 +38,12 @@ import { V1Job } from '@kubernetes/client-node';
 import { V1ObjectMeta } from '@kubernetes/client-node';
 import { V1Pod } from '@kubernetes/client-node';
 import { WorkloadsByEntityRequest } from '@backstage/plugin-kubernetes-common';
+
+// @public (undocumented)
+export class AksClusterLinksFormatter implements ClusterLinksFormatter {
+  // (undocumented)
+  formatClusterLink(options: ClusterLinksFormatterOptions): Promise<URL>;
+}
 
 // @public (undocumented)
 export class AksKubernetesAuthProvider implements KubernetesAuthProvider {
@@ -58,6 +66,24 @@ export const Cluster: ({
 
 // @public (undocumented)
 export const ClusterContext: React_2.Context<ClusterAttributes>;
+
+// @public (undocumented)
+export interface ClusterLinksFormatter {
+  // (undocumented)
+  formatClusterLink(options: ClusterLinksFormatterOptions): Promise<URL>;
+}
+
+// @public (undocumented)
+export interface ClusterLinksFormatterOptions {
+  // (undocumented)
+  dashboardParameters?: JsonObject;
+  // (undocumented)
+  dashboardUrl?: URL;
+  // (undocumented)
+  kind: string;
+  // (undocumented)
+  object: any;
+}
 
 // @public
 export type ClusterProps = {
@@ -104,8 +130,17 @@ export interface CustomResourcesProps {
   children?: React_2.ReactNode;
 }
 
+// @public (undocumented)
+export const DEFAULT_FORMATTER_NAME = 'standard';
+
 // @public
 export const DetectedErrorsContext: React_2.Context<DetectedError[]>;
+
+// @public (undocumented)
+export class EksClusterLinksFormatter implements ClusterLinksFormatter {
+  // (undocumented)
+  formatClusterLink(_options: ClusterLinksFormatterOptions): Promise<URL>;
+}
 
 // @public
 export const ErrorList: ({
@@ -208,6 +243,27 @@ export interface FixDialogProps {
 }
 
 // @public (undocumented)
+export type FormatClusterLinkOptions = {
+  dashboardUrl?: string;
+  dashboardApp?: string;
+  dashboardParameters?: JsonObject;
+  object: any;
+  kind: string;
+};
+
+// @public (undocumented)
+export function getDefaultFormatters(deps: {
+  googleAuthApi: ProfileInfoApi;
+}): Record<string, ClusterLinksFormatter>;
+
+// @public (undocumented)
+export class GkeClusterLinksFormatter implements ClusterLinksFormatter {
+  constructor(googleAuthApi: ProfileInfoApi | undefined);
+  // (undocumented)
+  formatClusterLink(options: ClusterLinksFormatterOptions): Promise<URL>;
+}
+
+// @public (undocumented)
 export class GoogleKubernetesAuthProvider implements KubernetesAuthProvider {
   constructor(authProvider: OAuthApi);
   // (undocumented)
@@ -252,11 +308,21 @@ export type JobsAccordionsProps = {
 // @public (undocumented)
 export interface KubernetesApi {
   // (undocumented)
+  getCluster(clusterName: string): Promise<
+    | {
+        name: string;
+        authProvider: string;
+        oidcTokenProvider?: string;
+        dashboardUrl?: string;
+      }
+    | undefined
+  >;
+  // (undocumented)
   getClusters(): Promise<
     {
       name: string;
       authProvider: string;
-      oidcTokenProvider?: string | undefined;
+      oidcTokenProvider?: string;
     }[]
   >;
   // (undocumented)
@@ -338,6 +404,12 @@ export class KubernetesBackendClient implements KubernetesApi {
     kubernetesAuthProvidersApi: KubernetesAuthProvidersApi;
   });
   // (undocumented)
+  getCluster(clusterName: string): Promise<{
+    name: string;
+    authProvider: string;
+    oidcTokenProvider?: string;
+  }>;
+  // (undocumented)
   getClusters(): Promise<
     {
       name: string;
@@ -363,6 +435,31 @@ export class KubernetesBackendClient implements KubernetesApi {
     init?: RequestInit;
   }): Promise<Response>;
 }
+
+// @public (undocumented)
+export class KubernetesClusterLinkFormatter
+  implements KubernetesClusterLinkFormatterApi
+{
+  constructor(options: {
+    formatters: Record<string, ClusterLinksFormatter>;
+    defaultFormatterName: string;
+  });
+  // (undocumented)
+  formatClusterLink(
+    options: FormatClusterLinkOptions,
+  ): Promise<string | undefined>;
+}
+
+// @public (undocumented)
+export interface KubernetesClusterLinkFormatterApi {
+  // (undocumented)
+  formatClusterLink(
+    options: FormatClusterLinkOptions,
+  ): Promise<string | undefined>;
+}
+
+// @public (undocumented)
+export const kubernetesClusterLinkFormatterApiRef: ApiRef<KubernetesClusterLinkFormatterApi>;
 
 // @public
 export const KubernetesDrawer: ({
@@ -536,6 +633,12 @@ export class OidcKubernetesAuthProvider implements KubernetesAuthProvider {
   providerName: string;
 }
 
+// @public (undocumented)
+export class OpenshiftClusterLinksFormatter {
+  // (undocumented)
+  formatClusterLink(options: ClusterLinksFormatterOptions): Promise<URL>;
+}
+
 // @public
 export const PendingPodContent: ({
   pod,
@@ -582,7 +685,7 @@ export const PodExecTerminal: (
 // @public
 export const PodExecTerminalDialog: (
   props: PodExecTerminalProps,
-) => React_2.JSX.Element;
+) => false | React_2.JSX.Element | undefined;
 
 // @public
 export interface PodExecTerminalProps {
@@ -666,6 +769,12 @@ export type PodsTablesProps = {
 };
 
 // @public (undocumented)
+export class RancherClusterLinksFormatter implements ClusterLinksFormatter {
+  // (undocumented)
+  formatClusterLink(options: ClusterLinksFormatterOptions): Promise<URL>;
+}
+
+// @public (undocumented)
 export const READY_COLUMNS: PodColumns;
 
 // @public (undocumented)
@@ -711,6 +820,12 @@ export const ServicesAccordions: ({}: ServicesAccordionsProps) => React_2.JSX.El
 
 // @public (undocumented)
 export type ServicesAccordionsProps = {};
+
+// @public (undocumented)
+export class StandardClusterLinksFormatter implements ClusterLinksFormatter {
+  // (undocumented)
+  formatClusterLink(options: ClusterLinksFormatterOptions): Promise<URL>;
+}
 
 // @public
 export const useCustomResources: (

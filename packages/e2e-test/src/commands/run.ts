@@ -71,6 +71,20 @@ export async function run() {
     env: { ...process.env, CI: undefined },
   });
 
+  await switchToReact17(appDir);
+
+  print(`Running 'yarn install' to install React 17`);
+  await runPlain(['yarn', 'install'], { cwd: appDir });
+
+  print(`Running 'yarn tsc' with React 17`);
+  await runPlain(['yarn', 'tsc'], { cwd: appDir });
+
+  print(`Running 'yarn test:e2e' with React 17`);
+  await runPlain(['yarn', 'test:e2e'], {
+    cwd: appDir,
+    env: { ...process.env, CI: undefined },
+  });
+
   if (
     Boolean(process.env.POSTGRES_USER) ||
     Boolean(process.env.MYSQL_CONNECTION)
@@ -263,6 +277,9 @@ async function createApp(
 
     const appDir = resolvePath(rootDir, appName);
 
+    print('Overriding yarn.lock with seed file from the create-app package');
+    overrideYarnLockSeed(appDir);
+
     print('Rewriting module resolutions of app to use workspace packages');
     await overrideModuleResolutions(appDir, workspaceDir);
 
@@ -303,6 +320,22 @@ async function createApp(
   } finally {
     child.kill();
   }
+}
+
+/**
+ * Overrides the downloaded yarn.lock file with the seed file packages/create-app/seed-yarn.lock
+ * This ensures that the E2E tests use the same seed file as users would receive when creating a new app
+ */
+async function overrideYarnLockSeed(appDir: string) {
+  const content = await fs.readFile(
+    paths.resolveOwnRoot('packages/create-app/seed-yarn.lock'),
+    'utf8',
+  );
+  const trimmedContent = content
+    .split('\n')
+    .filter(l => !l.startsWith('//'))
+    .join('\n');
+  await fs.writeFile(resolvePath(appDir, 'yarn.lock'), trimmedContent, 'utf8');
 }
 
 /**
@@ -374,6 +407,35 @@ async function createPlugin(options: {
   }
 }
 
+/**
+ * Switch the entire project to use React 17
+ */
+async function switchToReact17(appDir: string) {
+  const rootPkg = await fs.readJson(resolvePath(appDir, 'package.json'));
+  rootPkg.resolutions = {
+    ...(rootPkg.resolutions || {}),
+    react: '^17.0.0',
+    'react-dom': '^17.0.0',
+    '@types/react': '^17.0.0',
+    '@types/react-dom': '^17.0.0',
+  };
+  await fs.writeJson(resolvePath(appDir, 'package.json'), rootPkg, {
+    spaces: 2,
+  });
+
+  await fs.writeFile(
+    resolvePath(appDir, 'packages/app/src/index.tsx'),
+    `import '@backstage/cli/asset-types';
+import React from 'react';
+import ReactDOM from 'react-dom';
+import App from './App';
+
+ReactDOM.render(<App />, document.getElementById('root'));
+`,
+    'utf8',
+  );
+}
+
 /** Drops PG databases */
 async function dropDB(database: string, client: string) {
   try {
@@ -427,6 +489,8 @@ async function dropClientDatabases(client: string) {
 async function testBackendStart(appDir: string, ...args: string[]) {
   const child = spawnPiped(['yarn', 'workspace', 'backend', 'start', ...args], {
     cwd: appDir,
+    // Windows does not like piping stdin here, the child process will hang when requiring the 'process' module
+    stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...process.env,
       GITHUB_TOKEN: 'abc',
@@ -443,41 +507,35 @@ async function testBackendStart(appDir: string, ...args: string[]) {
   });
   let successful = false;
 
-  const stdErrorHasErrors = (input: string) => {
+  const filterStderr = (input: string) => {
     const lines = input.split('\n').filter(Boolean);
-    return (
-      lines.filter(
-        l =>
-          !l.includes('Use of deprecated folder mapping') &&
-          !l.includes('Update this package.json to use a subpath') &&
-          !l.includes(
-            '(Use `node --trace-deprecation ...` to show where the warning was created)',
-          ) &&
-          // These 4 are all for the AWS SDK v2 deprecation
-          !l.includes(
-            'The AWS SDK for JavaScript (v2) will be put into maintenance mode',
-          ) &&
-          !l.includes(
-            'Please migrate your code to use AWS SDK for JavaScript',
-          ) &&
-          !l.includes('check the migration guide at https://a.co/7PzMCcy') &&
-          !l.includes(
-            '(Use `node --trace-warnings ...` to show where the warning was created)',
-          ) &&
-          !l.includes('Custom ESM Loaders is an experimental feature') &&
-          !l.includes(
-            'ExperimentalWarning: `globalPreload` is planned for removal',
-          ),
-      ).length !== 0
+    return lines.filter(
+      l =>
+        !l.includes(
+          'ExperimentalWarning: Custom ESM Loaders is an experimental feature', // Node 16
+        ) &&
+        !l.includes(
+          'ExperimentalWarning: `--experimental-loader` may be removed in the future;', // Node 18
+        ) &&
+        !l.includes("--import 'data:text/javascript,import") && // the new --experimental-loader replacement warning, printed after the above, Node 18
+        !l.includes(
+          'ExperimentalWarning: `globalPreload` is planned for removal in favor of `initialize`.', // Node 18
+        ) &&
+        !l.includes('node --trace-warnings ...'),
     );
   };
 
   try {
     await waitFor(
-      () => stdout.includes('Listening on ') || stdErrorHasErrors(stderr),
+      () => stdout.includes('Listening on ') || filterStderr(stderr).length > 0,
     );
-    if (stdErrorHasErrors(stderr)) {
-      print(`Expected stderr to be clean, got ${stderr}`);
+    const stderrLines = filterStderr(stderr);
+    if (stderrLines.length > 0) {
+      print(
+        `Expected stderr to be clean, got ${stderr} \n\nThe following lines were unexpected:\n${stderrLines.join(
+          '\n',
+        )}`,
+      );
       // Skipping the whole block
       throw new Error(stderr);
     }

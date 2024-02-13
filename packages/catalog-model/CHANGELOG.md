@@ -1,5 +1,32 @@
 # @backstage/catalog-model
 
+## 1.4.4-next.0
+
+### Patch Changes
+
+- 07e7d12: Fix wording in API reference
+- Updated dependencies
+  - @backstage/errors@1.2.3
+  - @backstage/types@1.1.1
+
+## 1.4.3
+
+### Patch Changes
+
+- 0b55f773a7: Removed some unused dependencies
+- Updated dependencies
+  - @backstage/errors@1.2.3
+  - @backstage/types@1.1.1
+
+## 1.4.3-next.0
+
+### Patch Changes
+
+- 0b55f773a7: Removed some unused dependencies
+- Updated dependencies
+  - @backstage/errors@1.2.3-next.0
+  - @backstage/types@1.1.1
+
 ## 1.4.2
 
 ### Patch Changes

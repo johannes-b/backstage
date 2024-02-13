@@ -1,5 +1,178 @@
 # @backstage/backend-openapi-utils
 
+## 0.1.3-next.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.10-next.2
+  - @backstage/errors@1.2.3
+
+## 0.1.3-next.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.10-next.1
+  - @backstage/errors@1.2.3
+
+## 0.1.3-next.0
+
+### Patch Changes
+
+- 2067689: Internal updates due to `json-schema-to-ts`
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.10-next.0
+  - @backstage/errors@1.2.3
+
+## 0.1.2
+
+### Patch Changes
+
+- 4016f21: Remove some unused dependencies
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.9
+  - @backstage/errors@1.2.3
+
+## 0.1.2-next.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.9-next.2
+
+## 0.1.2-next.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.9-next.1
+  - @backstage/errors@1.2.3
+
+## 0.1.2-next.0
+
+### Patch Changes
+
+- 4016f21: Remove some unused dependencies
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.9-next.0
+  - @backstage/errors@1.2.3
+
+## 0.1.1
+
+### Patch Changes
+
+- aaa6fb3: Minor updates for TypeScript 5.2.2+ compatibility
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.8
+  - @backstage/config@1.1.1
+  - @backstage/errors@1.2.3
+
+## 0.1.1-next.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.8-next.3
+  - @backstage/config@1.1.1
+  - @backstage/errors@1.2.3
+
+## 0.1.1-next.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.8-next.2
+  - @backstage/config@1.1.1
+  - @backstage/errors@1.2.3
+
+## 0.1.1-next.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.8-next.1
+  - @backstage/config@1.1.1
+  - @backstage/errors@1.2.3
+
+## 0.1.1-next.0
+
+### Patch Changes
+
+- aaa6fb3bc9: Minor updates for TypeScript 5.2.2+ compatibility
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.8-next.0
+  - @backstage/config@1.1.1
+  - @backstage/errors@1.2.3
+
+## 0.1.0
+
+### Minor Changes
+
+- 785fb1ea75: Adds a new route, `/openapi.json` to validated routers for displaying their full OpenAPI spec in a standard endpoint.
+
+### Patch Changes
+
+- 6694b369a3: Adds a new function `wrapInOpenApiTestServer` that allows for proxied requests at runtime. This will support the new `yarn backstage-repo-tools schema openapi test` command.
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.7
+  - @backstage/config@1.1.1
+  - @backstage/errors@1.2.3
+
+## 0.1.0-next.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.7-next.2
+
+## 0.1.0-next.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.7-next.1
+  - @backstage/config@1.1.1
+  - @backstage/errors@1.2.3
+
+## 0.1.0-next.0
+
+### Minor Changes
+
+- 785fb1ea75: Adds a new route, `/openapi.json` to validated routers for displaying their full OpenAPI spec in a standard endpoint.
+
+### Patch Changes
+
+- 6694b369a3: Adds a new function `wrapInOpenApiTestServer` that allows for proxied requests at runtime. This will support the new `yarn backstage-repo-tools schema openapi test` command.
+- Updated dependencies
+  - @backstage/backend-plugin-api@0.6.7-next.0
+  - @backstage/config@1.1.1
+  - @backstage/errors@1.2.3
+
+## 0.0.5
+
+### Patch Changes
+
+- 7c83975531: Adds new public utility types for common OpenAPI values, like request and response shapes and parameters available on an endpoint.
+
+  **deprecated** `internal` namespace
+  The internal namespace will continue to be exported but now uses OpenAPI format for path parameters. You should use the new utility types.
+
+- Updated dependencies
+  - @backstage/errors@1.2.3
+
+## 0.0.5-next.0
+
+### Patch Changes
+
+- 7c83975531: Adds new public utility types for common OpenAPI values, like request and response shapes and parameters available on an endpoint.
+
+  **deprecated** `internal` namespace
+  The internal namespace will continue to be exported but now uses OpenAPI format for path parameters. You should use the new utility types.
+
+- Updated dependencies
+  - @backstage/errors@1.2.3-next.0
+
 ## 0.0.4
 
 ### Patch Changes

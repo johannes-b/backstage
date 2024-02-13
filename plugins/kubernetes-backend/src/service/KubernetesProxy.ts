@@ -21,7 +21,10 @@ import {
   serializeError,
 } from '@backstage/errors';
 import { getBearerTokenFromAuthorizationHeader } from '@backstage/plugin-auth-node';
-import { kubernetesProxyPermission } from '@backstage/plugin-kubernetes-common';
+import {
+  KubernetesRequestAuth,
+  kubernetesProxyPermission,
+} from '@backstage/plugin-kubernetes-common';
 import {
   AuthorizeResult,
   PermissionEvaluator,
@@ -34,6 +37,7 @@ import { AuthenticationStrategy } from '../auth';
 import { ClusterDetails, KubernetesClustersSupplier } from '../types/types';
 
 import type { Request } from 'express';
+import { IncomingHttpHeaders } from 'http';
 
 export const APPLICATION_JSON: string = 'application/json';
 
@@ -109,18 +113,6 @@ export class KubernetesProxy {
         return;
       }
 
-      const authHeader = req.header(HEADER_KUBERNETES_AUTH);
-      if (authHeader) {
-        req.headers.authorization = authHeader;
-      } else {
-        const credential = await this.getClusterForRequest(req).then(cd => {
-          return this.authStrategy.getCredential(cd, {});
-        });
-        if (credential.type === 'bearer token') {
-          req.headers.authorization = `Bearer ${credential.token}`;
-        }
-      }
-
       const middleware = await this.getMiddleware(req);
 
       // If req is an upgrade handshake, use middleware upgrade instead of http request handler https://github.com/chimurai/http-proxy-middleware#external-websocket-upgrade
@@ -163,7 +155,7 @@ export class KubernetesProxy {
           const cluster = await this.getClusterForRequest(req);
           const url = new URL(cluster.url);
 
-          return {
+          const target: any = {
             protocol: url.protocol,
             host: url.hostname,
             port: url.port,
@@ -172,6 +164,29 @@ export class KubernetesProxy {
               cluster.caData,
             )?.toString(),
           };
+
+          const authHeader = req.header(HEADER_KUBERNETES_AUTH);
+          if (authHeader) {
+            req.headers.authorization = authHeader;
+          } else {
+            // Map Backstage-Kubernetes-Authorization-X-X headers to a KubernetesRequestAuth object
+            const authObj = KubernetesProxy.authHeadersToKubernetesRequestAuth(
+              req.headers,
+            );
+
+            const credential = await this.getClusterForRequest(req).then(cd => {
+              return this.authStrategy.getCredential(cd, authObj);
+            });
+
+            if (credential.type === 'bearer token') {
+              req.headers.authorization = `Bearer ${credential.token}`;
+            } else if (credential.type === 'x509 client certificate') {
+              target.key = credential.key;
+              target.cert = credential.cert;
+            }
+          }
+
+          return target;
         },
         onError: (error, req, res) => {
           const wrappedError = new ForwardedError(
@@ -220,5 +235,53 @@ export class KubernetesProxy {
     }
 
     return cluster;
+  }
+
+  private static authHeadersToKubernetesRequestAuth(
+    originalHeaders: IncomingHttpHeaders,
+  ): KubernetesRequestAuth {
+    return Object.keys(originalHeaders)
+      .filter(header => header.startsWith('backstage-kubernetes-authorization'))
+      .map(header =>
+        KubernetesProxy.headerToDictionary(header, originalHeaders),
+      )
+      .filter(headerAsDic => Object.keys(headerAsDic).length !== 0)
+      .reduce(KubernetesProxy.combineHeaders, {});
+  }
+
+  private static headerToDictionary(
+    header: string,
+    originalHeaders: IncomingHttpHeaders,
+  ): KubernetesRequestAuth {
+    const obj: KubernetesRequestAuth = {};
+    const headerSplitted = header.split('-');
+    if (headerSplitted.length >= 4) {
+      const framework = headerSplitted[3].toLowerCase();
+      if (headerSplitted.length >= 5) {
+        const provider = headerSplitted.slice(4).join('-').toLowerCase();
+        obj[framework] = { [provider]: originalHeaders[header] };
+      } else {
+        obj[framework] = originalHeaders[header];
+      }
+    }
+    return obj;
+  }
+
+  private static combineHeaders(
+    authObj: any,
+    header: any,
+  ): KubernetesRequestAuth {
+    const framework = Object.keys(header)[0];
+
+    if (authObj[framework]) {
+      authObj[framework] = {
+        ...authObj[framework],
+        ...header[framework],
+      };
+    } else {
+      authObj[framework] = header[framework];
+    }
+
+    return authObj;
   }
 }

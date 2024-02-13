@@ -7,6 +7,7 @@ import { BasicPermission } from '@backstage/plugin-permission-common';
 import { Entity } from '@backstage/catalog-model';
 import { FetchResponse as FetchResponse_2 } from '@backstage/plugin-kubernetes-common';
 import type { JsonObject } from '@backstage/types';
+import type { JsonValue } from '@backstage/types';
 import { ObjectsByEntityResponse as ObjectsByEntityResponse_2 } from '@backstage/plugin-kubernetes-common';
 import { PodStatus } from '@kubernetes/client-node';
 import { V1ConfigMap } from '@kubernetes/client-node';
@@ -19,6 +20,7 @@ import { V1Job } from '@kubernetes/client-node';
 import { V1LimitRange } from '@kubernetes/client-node';
 import { V1Pod } from '@kubernetes/client-node';
 import { V1ReplicaSet } from '@kubernetes/client-node';
+import { V1ResourceQuota } from '@kubernetes/client-node';
 import { V1Service } from '@kubernetes/client-node';
 import { V1StatefulSet } from '@kubernetes/client-node';
 
@@ -38,12 +40,20 @@ export const ANNOTATION_KUBERNETES_AWS_ASSUME_ROLE =
   'kubernetes.io/aws-assume-role';
 
 // @public
+export const ANNOTATION_KUBERNETES_AWS_CLUSTER_ID =
+  'kubernetes.io/x-k8s-aws-id';
+
+// @public
 export const ANNOTATION_KUBERNETES_AWS_EXTERNAL_ID =
   'kubernetes.io/aws-external-id';
 
 // @public
 export const ANNOTATION_KUBERNETES_DASHBOARD_APP =
   'kubernetes.io/dashboard-app';
+
+// @public
+export const ANNOTATION_KUBERNETES_DASHBOARD_PARAMETERS =
+  'kubernetes.io/dashboard-parameters';
 
 // @public
 export const ANNOTATION_KUBERNETES_DASHBOARD_URL =
@@ -244,6 +254,7 @@ export type FetchResponse =
   | ConfigMapFetchResponse
   | DeploymentFetchResponse
   | LimitRangeFetchResponse
+  | ResourceQuotaFetchResponse
   | ReplicaSetsFetchResponse
   | HorizontalPodAutoscalersFetchResponse
   | JobsFetchResponse
@@ -319,7 +330,9 @@ export const kubernetesPermissions: BasicPermission[];
 export const kubernetesProxyPermission: BasicPermission;
 
 // @public (undocumented)
-export type KubernetesRequestAuth = JsonObject;
+export type KubernetesRequestAuth = {
+  [providerKey: string]: JsonValue | undefined;
+};
 
 // @public (undocumented)
 export interface KubernetesRequestBody {
@@ -394,6 +407,14 @@ export interface ReplicaSetsFetchResponse {
   resources: Array<V1ReplicaSet>;
   // (undocumented)
   type: 'replicasets';
+}
+
+// @public (undocumented)
+export interface ResourceQuotaFetchResponse {
+  // (undocumented)
+  resources: Array<V1ResourceQuota>;
+  // (undocumented)
+  type: 'resourcequotas';
 }
 
 // @public

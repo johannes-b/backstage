@@ -32,6 +32,7 @@ import {
   starredEntitiesApiRef,
 } from '@backstage/plugin-catalog-react';
 import {
+  MockPermissionApi,
   MockStorageApi,
   TestApiProvider,
   renderInTestApp,
@@ -41,6 +42,7 @@ import { screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { apiDocsConfigRef } from '../../config';
 import { DefaultApiExplorerPage } from './DefaultApiExplorerPage';
+import { permissionApiRef } from '@backstage/plugin-permission-react';
 
 describe('DefaultApiExplorerPage', () => {
   const catalogApi: Partial<CatalogApi> = {
@@ -52,6 +54,10 @@ describe('DefaultApiExplorerPage', () => {
             kind: 'API',
             metadata: {
               name: 'Entity1',
+              annotations: {
+                'backstage.io/view-url': 'viewurl',
+                'backstage.io/edit-url': 'editurl',
+              },
             },
             spec: { type: 'openapi' },
           },
@@ -62,6 +68,11 @@ describe('DefaultApiExplorerPage', () => {
     getEntitiesByRefs: () => Promise.resolve({ items: [] }),
     getEntityFacets: async () => ({
       facets: { 'relations.ownedBy': [] },
+    }),
+    queryEntities: async () => ({
+      items: [],
+      pageInfo: {},
+      totalItems: 0,
     }),
   };
 
@@ -89,6 +100,7 @@ describe('DefaultApiExplorerPage', () => {
             new DefaultStarredEntitiesApi({ storageApi }),
           ],
           [apiDocsConfigRef, apiDocsConfig],
+          [permissionApiRef, new MockPermissionApi()],
         ]}
       >
         {children}
@@ -152,37 +164,39 @@ describe('DefaultApiExplorerPage', () => {
 
   it('should render the default actions of an item in the grid', async () => {
     await renderWrapped(<DefaultApiExplorerPage />);
-    expect(await screen.findByText(/All apis \(1\)/)).toBeInTheDocument();
-    expect(await screen.findByTitle(/View/)).toBeInTheDocument();
-    expect(await screen.findByTitle(/View/)).toBeInTheDocument();
-    expect(await screen.findByTitle(/Edit/)).toBeInTheDocument();
-    expect(await screen.findByTitle(/Add to favorites/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/All apis \(1\)/)).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /view/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
+    expect(screen.getByTitle(/Add to favorites/)).toBeInTheDocument();
   });
 
   it('should render the custom actions of an item passed as prop', async () => {
     const actions: TableProps<CatalogTableRow>['actions'] = [
-      () => {
-        return {
-          icon: () => <DashboardIcon fontSize="small" />,
-          tooltip: 'Foo Action',
-          disabled: false,
-          onClick: () => jest.fn(),
-        };
+      {
+        icon: () => <DashboardIcon fontSize="small" />,
+        tooltip: 'Foo Action',
+        disabled: false,
+        onClick: jest.fn(),
       },
-      () => {
-        return {
-          icon: () => <DashboardIcon fontSize="small" />,
-          tooltip: 'Bar Action',
-          disabled: true,
-          onClick: () => jest.fn(),
-        };
+      {
+        icon: () => <DashboardIcon fontSize="small" />,
+        tooltip: 'Bar Action',
+        disabled: true,
+        onClick: jest.fn(),
       },
     ];
 
     await renderWrapped(<DefaultApiExplorerPage actions={actions} />);
-    expect(await screen.findByText(/All apis \(1\)/)).toBeInTheDocument();
-    expect(await screen.findByTitle(/Foo Action/)).toBeInTheDocument();
-    expect(await screen.findByTitle(/Bar Action/)).toBeInTheDocument();
-    expect((await screen.findByTitle(/Bar Action/)).firstChild).toBeDisabled();
+    await waitFor(() => {
+      expect(screen.getByText(/All apis \(1\)/)).toBeInTheDocument();
+    });
+    expect(screen.getByTitle(/Foo Action/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Bar Action/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Bar Action/).firstChild).toBeDisabled();
   });
 });

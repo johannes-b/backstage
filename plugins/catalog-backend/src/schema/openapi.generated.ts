@@ -22,7 +22,7 @@ import { createValidatedOpenApiRouter } from '@backstage/backend-openapi-utils';
 export const spec = {
   openapi: '3.0.3',
   info: {
-    title: '@backstage/plugin-catalog-backend',
+    title: 'catalog',
     version: '1',
     description:
       'The Backstage backend plugin that provides the Backstage catalog',
@@ -105,6 +105,7 @@ export const spec = {
         description: 'Restrict to just these fields in the response.',
         required: false,
         allowReserved: true,
+        explode: false,
         schema: {
           type: 'array',
           items: {
@@ -191,12 +192,70 @@ export const spec = {
       },
     },
     requestBodies: {},
-    responses: {},
+    responses: {
+      ErrorResponse: {
+        description: 'An error response from the backend.',
+        content: {
+          'application/json': {
+            schema: {
+              $ref: '#/components/schemas/Error',
+            },
+          },
+        },
+      },
+    },
     schemas: {
+      Error: {
+        type: 'object',
+        properties: {
+          error: {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+              },
+              message: {
+                type: 'string',
+              },
+              stack: {
+                type: 'string',
+              },
+              code: {
+                type: 'string',
+              },
+            },
+            required: ['name', 'message'],
+          },
+          request: {
+            type: 'object',
+            properties: {
+              method: {
+                type: 'string',
+              },
+              url: {
+                type: 'string',
+              },
+            },
+            required: ['method', 'url'],
+          },
+          response: {
+            type: 'object',
+            properties: {
+              statusCode: {
+                type: 'number',
+              },
+            },
+            required: ['statusCode'],
+          },
+        },
+        required: ['error', 'response'],
+        additionalProperties: {},
+      },
       JsonObject: {
         type: 'object',
         properties: {},
         description: 'A type representing all allowed JSON object values.',
+        additionalProperties: {},
       },
       MapStringString: {
         type: 'object',
@@ -234,70 +293,62 @@ export const spec = {
         additionalProperties: false,
       },
       EntityMeta: {
-        allOf: [
-          {
-            $ref: '#/components/schemas/JsonObject',
-          },
-          {
-            type: 'object',
-            properties: {
-              links: {
-                type: 'array',
-                items: {
-                  $ref: '#/components/schemas/EntityLink',
-                },
-                description:
-                  'A list of external hyperlinks related to the entity.',
-              },
-              tags: {
-                type: 'array',
-                items: {
-                  type: 'string',
-                },
-                description:
-                  'A list of single-valued strings, to for example classify catalog entities in\nvarious ways.',
-              },
-              annotations: {
-                $ref: '#/components/schemas/MapStringString',
-              },
-              labels: {
-                $ref: '#/components/schemas/MapStringString',
-              },
-              description: {
-                type: 'string',
-                description:
-                  'A short (typically relatively few words, on one line) description of the\nentity.',
-              },
-              title: {
-                type: 'string',
-                description:
-                  'A display name of the entity, to be presented in user interfaces instead\nof the `name` property above, when available.\nThis field is sometimes useful when the `name` is cumbersome or ends up\nbeing perceived as overly technical. The title generally does not have\nas stringent format requirements on it, so it may contain special\ncharacters and be more explanatory. Do keep it very short though, and\navoid situations where a title can be confused with the name of another\nentity, or where two entities share a title.\nNote that this is only for display purposes, and may be ignored by some\nparts of the code. Entity references still always make use of the `name`\nproperty, not the title.',
-              },
-              namespace: {
-                type: 'string',
-                description: 'The namespace that the entity belongs to.',
-              },
-              name: {
-                type: 'string',
-                description:
-                  'The name of the entity.\nMust be unique within the catalog at any given point in time, for any\ngiven namespace + kind pair. This value is part of the technical\nidentifier of the entity, and as such it will appear in URLs, database\ntables, entity references, and similar. It is subject to restrictions\nregarding what characters are allowed.\nIf you want to use a different, more human readable string with fewer\nrestrictions on it in user interfaces, see the `title` field below.',
-              },
-              etag: {
-                type: 'string',
-                description:
-                  'An opaque string that changes for each update operation to any part of\nthe entity, including metadata.\nThis field can not be set by the user at creation time, and the server\nwill reject an attempt to do so. The field will be populated in read\noperations. The field can (optionally) be specified when performing\nupdate or delete operations, and the server will then reject the\noperation if it does not match the current stored value.',
-              },
-              uid: {
-                type: 'string',
-                description:
-                  'A globally unique ID for the entity.\nThis field can not be set by the user at creation time, and the server\nwill reject an attempt to do so. The field will be populated in read\noperations. The field can (optionally) be specified when performing\nupdate or delete operations, but the server is free to reject requests\nthat do so in such a way that it breaks semantics.',
-              },
+        type: 'object',
+        properties: {
+          links: {
+            type: 'array',
+            items: {
+              $ref: '#/components/schemas/EntityLink',
             },
-            required: ['name'],
+            description: 'A list of external hyperlinks related to the entity.',
           },
-        ],
+          tags: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            description:
+              'A list of single-valued strings, to for example classify catalog entities in\nvarious ways.',
+          },
+          annotations: {
+            $ref: '#/components/schemas/MapStringString',
+          },
+          labels: {
+            $ref: '#/components/schemas/MapStringString',
+          },
+          description: {
+            type: 'string',
+            description:
+              'A short (typically relatively few words, on one line) description of the\nentity.',
+          },
+          title: {
+            type: 'string',
+            description:
+              'A display name of the entity, to be presented in user interfaces instead\nof the `name` property above, when available.\nThis field is sometimes useful when the `name` is cumbersome or ends up\nbeing perceived as overly technical. The title generally does not have\nas stringent format requirements on it, so it may contain special\ncharacters and be more explanatory. Do keep it very short though, and\navoid situations where a title can be confused with the name of another\nentity, or where two entities share a title.\nNote that this is only for display purposes, and may be ignored by some\nparts of the code. Entity references still always make use of the `name`\nproperty, not the title.',
+          },
+          namespace: {
+            type: 'string',
+            description: 'The namespace that the entity belongs to.',
+          },
+          name: {
+            type: 'string',
+            description:
+              'The name of the entity.\nMust be unique within the catalog at any given point in time, for any\ngiven namespace + kind pair. This value is part of the technical\nidentifier of the entity, and as such it will appear in URLs, database\ntables, entity references, and similar. It is subject to restrictions\nregarding what characters are allowed.\nIf you want to use a different, more human readable string with fewer\nrestrictions on it in user interfaces, see the `title` field below.',
+          },
+          etag: {
+            type: 'string',
+            description:
+              'An opaque string that changes for each update operation to any part of\nthe entity, including metadata.\nThis field can not be set by the user at creation time, and the server\nwill reject an attempt to do so. The field will be populated in read\noperations. The field can (optionally) be specified when performing\nupdate or delete operations, and the server will then reject the\noperation if it does not match the current stored value.',
+          },
+          uid: {
+            type: 'string',
+            description:
+              'A globally unique ID for the entity.\nThis field can not be set by the user at creation time, and the server\nwill reject an attempt to do so. The field will be populated in read\noperations. The field can (optionally) be specified when performing\nupdate or delete operations, but the server is free to reject requests\nthat do so in such a way that it breaks semantics.',
+          },
+        },
+        required: ['name'],
         description: 'Metadata fields common to all versions/kinds of entity.',
-        additionalProperties: true,
+        additionalProperties: {},
       },
       EntityRelation: {
         type: 'object',
@@ -346,7 +397,6 @@ export const spec = {
         required: ['metadata', 'kind', 'apiVersion'],
         description:
           "The parts of the format that's common to all versions/kinds of entity.",
-        additionalProperties: true,
       },
       NullableEntity: {
         type: 'object',
@@ -378,7 +428,6 @@ export const spec = {
         required: ['metadata', 'kind', 'apiVersion'],
         description:
           "The parts of the format that's common to all versions/kinds of entity.",
-        additionalProperties: true,
         nullable: true,
       },
       EntityAncestryResponse: {
@@ -415,11 +464,7 @@ export const spec = {
           items: {
             type: 'array',
             items: {
-              anyOf: [
-                {
-                  $ref: '#/components/schemas/NullableEntity',
-                },
-              ],
+              $ref: '#/components/schemas/NullableEntity',
             },
             description:
               'The list of entities, in the same order as the refs in the request. Entries\nthat are null signify that no entity existed with that ref.',
@@ -438,6 +483,7 @@ export const spec = {
             type: 'number',
           },
         },
+        required: ['value', 'count'],
         additionalProperties: false,
       },
       EntityFacetsResponse: {
@@ -698,38 +744,6 @@ export const spec = {
         required: ['type', 'target'],
         additionalProperties: false,
       },
-      SerializedError: {
-        allOf: [
-          {
-            $ref: '#/components/schemas/JsonObject',
-          },
-          {
-            type: 'object',
-            properties: {
-              code: {
-                type: 'string',
-                description:
-                  'A custom code (not necessarily the same as an HTTP response code); may not be present',
-              },
-              stack: {
-                type: 'string',
-                description: 'A stringified stack trace; may not be present',
-              },
-              message: {
-                type: 'string',
-                description: 'The message of the exception that was thrown',
-              },
-              name: {
-                type: 'string',
-                description: 'The name of the exception that was thrown',
-              },
-            },
-            required: ['message', 'name'],
-          },
-        ],
-        description: 'The serialized form of an Error.',
-        additionalProperties: false,
-      },
       EntitiesQueryResponse: {
         type: 'object',
         properties: {
@@ -757,6 +771,7 @@ export const spec = {
             },
           },
         },
+        required: ['items', 'totalItems', 'pageInfo'],
         additionalProperties: false,
       },
     },
@@ -776,6 +791,12 @@ export const spec = {
         responses: {
           '200': {
             description: 'Refreshed',
+          },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
           },
         },
         security: [
@@ -828,6 +849,12 @@ export const spec = {
                 },
               },
             },
+          },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
           },
         },
         security: [
@@ -882,6 +909,12 @@ export const spec = {
               },
             },
           },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
+          },
         },
         security: [
           {},
@@ -901,6 +934,12 @@ export const spec = {
         responses: {
           '204': {
             description: 'Deleted successfully.',
+          },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
           },
         },
         security: [
@@ -930,6 +969,12 @@ export const spec = {
                 },
               },
             },
+          },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
           },
         },
         security: [
@@ -965,6 +1010,12 @@ export const spec = {
                 },
               },
             },
+          },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
           },
         },
         security: [
@@ -1002,6 +1053,12 @@ export const spec = {
               },
             },
           },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
+          },
         },
         security: [
           {},
@@ -1009,13 +1066,8 @@ export const spec = {
             JWT: [],
           },
         ],
-        parameters: [
-          {
-            $ref: '#/components/parameters/fields',
-          },
-        ],
         requestBody: {
-          required: true,
+          required: false,
           content: {
             'application/json': {
               schema: {
@@ -1071,6 +1123,12 @@ export const spec = {
                 },
               },
             },
+          },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
           },
         },
         security: [
@@ -1139,6 +1197,12 @@ export const spec = {
               },
             },
           },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
+          },
         },
         security: [
           {},
@@ -1178,8 +1242,8 @@ export const spec = {
         operationId: 'CreateLocation',
         description: 'Create a location for a given target.',
         responses: {
-          '200': {
-            description: 'Ok',
+          '201': {
+            description: 'Created',
             content: {
               'application/json': {
                 schema: {
@@ -1202,6 +1266,12 @@ export const spec = {
                 },
               },
             },
+          },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
           },
         },
         security: [
@@ -1264,6 +1334,9 @@ export const spec = {
               },
             },
           },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
+          },
         },
         security: [
           {},
@@ -1288,6 +1361,9 @@ export const spec = {
                 },
               },
             },
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
           },
         },
         security: [
@@ -1315,6 +1391,12 @@ export const spec = {
           '204': {
             description: 'No content',
           },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
+          },
         },
         security: [
           {},
@@ -1326,6 +1408,62 @@ export const spec = {
           {
             in: 'path',
             name: 'id',
+            required: true,
+            allowReserved: true,
+            schema: {
+              type: 'string',
+            },
+          },
+        ],
+      },
+    },
+    '/locations/by-entity/{kind}/{namespace}/{name}': {
+      get: {
+        operationId: 'getLocationByEntity',
+        description: 'Get a location for entity.',
+        responses: {
+          '200': {
+            description: 'Ok',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Location',
+                },
+              },
+            },
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+        },
+        security: [
+          {},
+          {
+            JWT: [],
+          },
+        ],
+        parameters: [
+          {
+            in: 'path',
+            name: 'kind',
+            required: true,
+            allowReserved: true,
+            schema: {
+              type: 'string',
+            },
+          },
+          {
+            in: 'path',
+            name: 'namespace',
+            required: true,
+            allowReserved: true,
+            schema: {
+              type: 'string',
+            },
+          },
+          {
+            in: 'path',
+            name: 'name',
             required: true,
             allowReserved: true,
             schema: {
@@ -1349,6 +1487,12 @@ export const spec = {
                 },
               },
             },
+          },
+          '400': {
+            $ref: '#/components/responses/ErrorResponse',
+          },
+          default: {
+            $ref: '#/components/responses/ErrorResponse',
           },
         },
         security: [
@@ -1387,32 +1531,32 @@ export const spec = {
         responses: {
           '200': {
             description: 'Ok',
+          },
+          '400': {
+            description: 'Validation errors.',
             content: {
-              'application/json': {
+              'application/json; charset=utf-8': {
                 schema: {
-                  anyOf: [
-                    {
-                      type: 'object',
-                      properties: {
-                        errors: {
-                          $ref: '#/components/schemas/SerializedError',
-                        },
-                      },
-                      required: ['errors'],
-                    },
-                    {
-                      type: 'object',
-                      properties: {
-                        errors: {
-                          type: 'array',
-                          items: {
-                            $ref: '#/components/schemas/SerializedError',
+                  type: 'object',
+                  properties: {
+                    errors: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          name: {
+                            type: 'string',
+                          },
+                          message: {
+                            type: 'string',
                           },
                         },
+                        required: ['name', 'message'],
+                        additionalProperties: {},
                       },
-                      required: ['errors'],
                     },
-                  ],
+                  },
+                  required: ['errors'],
                 },
               },
             },
@@ -1437,7 +1581,7 @@ export const spec = {
                   },
                   entity: {
                     type: 'object',
-                    additionalProperties: true,
+                    additionalProperties: {},
                   },
                 },
                 required: ['location', 'entity'],

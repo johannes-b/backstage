@@ -28,8 +28,18 @@ Install this module:
 
 ```bash
 # From your Backstage root directory
-yarn add --cwd packages/backend @backstage/plugin-events-backend-module-bitbucket-cloud
+yarn --cwd packages/backend add @backstage/plugin-events-backend-module-bitbucket-cloud
 ```
+
+### Add to backend
+
+```ts title="packages/backend/src/index.ts"
+backend.add(
+  import('@backstage/plugin-events-backend-module-bitbucket-cloud/alpha'),
+);
+```
+
+### Add to backend (old)
 
 Add the event router to the `EventsBackend` instance in `packages/backend/src/plugins/events.ts`:
 
